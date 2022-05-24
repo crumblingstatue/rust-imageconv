@@ -1,5 +1,3 @@
-#![feature(array_chunks)]
-
 use std::ffi::OsStr;
 
 use anyhow::Context;
@@ -18,24 +16,23 @@ fn main() -> anyhow::Result<()> {
 fn conv(src: &OsStr, dst: &OsStr) -> anyhow::Result<()> {
     let dst_type = determine_dst_type(dst)?;
     let img = image::open(src)?;
-    let bytes = conv_to_type(&img, dst_type)?;
+    let bytes = conv_to_type(&img, dst_type);
     std::fs::write(dst, &bytes)?;
     Ok(())
 }
 
-fn conv_to_type(img: &DynamicImage, type_: DstType) -> anyhow::Result<Vec<u8>> {
+fn conv_to_type(img: &DynamicImage, type_: DstType) -> Vec<u8> {
     match type_ {
         DstType::Argb32 => conv_argb32(img),
     }
 }
 
-fn conv_argb32(img: &DynamicImage) -> anyhow::Result<Vec<u8>> {
-    let rgba8 = img.to_rgba8();
-    let mut argb = Vec::with_capacity(rgba8.len());
-    for &[r, g, b, a] in rgba8.array_chunks() {
-        argb.extend_from_slice(&[a, r, g, b]);
+fn conv_argb32(img: &DynamicImage) -> Vec<u8> {
+    let mut rgba8 = img.to_rgba8();
+    for chunk in rgba8.chunks_mut(4) {
+        chunk.rotate_right(1)
     }
-    Ok(argb)
+    rgba8.into_raw()
 }
 
 fn determine_dst_type(path: &OsStr) -> anyhow::Result<DstType> {
